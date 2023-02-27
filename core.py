@@ -6,19 +6,24 @@ ti.init(arch=ti.cpu)
 link_list = []
 joint_list = []
 
+# Some math utils.
 @ti.func
-def AddLink(link_name):
-    if link_name == "hinge":
-        pass
-    elif link_name == "?":
-        pass
-
-
-@ti.func
-def AddJoint():
+def InverseTransform(transform):
     pass
 
+@ti.func
+def ApplyTransformToPoint(transform, point):
+    pass
 
 @ti.func
-def Not():
+def GetRotMatrix2D(omega):
     pass
+
+@ti.func
+def GetRotMatrixDerivative2D(omega):
+    pass
+
+@ti.func
+def GetRotMatrixSecondDerivative2D(omega):
+    pass
+

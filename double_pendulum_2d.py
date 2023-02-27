@@ -112,3 +112,19 @@ print(rotation_matrices[0] @ position[0])
 position[0] += position[1]
 print(position)
 input()
+
+window = ti.ui.Window('Window Title', res = (640, 360), pos = (150, 150))
+
+while window.running:
+    step()
+    canvas = window.get_canvas()
+    canvas.set_background_color((0.1, 0.2, 0.8))
+    canvas.circles(position, ball_radius, (1., 0.7, 0.2))
+    line_index = ti.Vector.field(2, dtype=int, shape=(num_links, ))
+    line_field = ti.Vector.field(2, dtype=float, shape=(num_links + 1, ))
+    for i in position:
+        line_field[i + 1] = position[i]
+        line_index[i] = [i, i - 1]
+    canvas.lines(line_field, ball_radius / 10, line_index, color=(0.1, 0.1, 0.1))
+    
+    window.show()
