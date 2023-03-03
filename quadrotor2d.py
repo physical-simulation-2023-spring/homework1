@@ -11,16 +11,19 @@ robot_body_coord = ti.Vector.field(2, float, shape=(2, ))
 
 # The global transformation of the object.
 trans = Transform2D()
+theta = ti.float32()
 
 # The velocity and the angular velocity of the object.
 velocity = tm.vec2()
 angular_velocity = ti.float32()
+rotation_mat_time_derivative = tm.mat2()
 
 external_force = tm.vec2()
 external_torque = ti.float32()
 
 time_step = 0.001
-gravity = tm.vec2([0, -2])
+mass = 4.
+gravitational_acceleration = tm.vec2([0, -9.8])
 body_inertia = 0.5
 
 @ti.kernel
@@ -41,43 +44,59 @@ def Forward(h):
 
 @ti.func
 def ForwardEuler():
+    trans.translation += velocity * time_step
+    theta += angular_velocity * time_step
+    trans.UpdateFromTheta(theta)
+    velocity += external_force * (time_step / mass)
+    angular_velocity += external_torque * (time_step / body_inertia)
+
+@ti.kernel
+def ApplyForce(left_delta: float, right_delta: float):
+    external_force = gravitational_acceleration * mass
+    g = external_force.norm()
+    force_direction = trans.rotation[1]
+    external_force += force_direction * (left_delta + right_delta) * g
+    external_torque = (left_delta - right_delta) * g * 0.25
+
+@ti.func
+def RungeKutta2():
     pass
 
 @ti.func
-def RK2():
-    pass
-
-@ti.func
-def RK4():
+def RungeKutta4():
     pass
 
 @ti.kernel
 def step():
     pass
 
-@ti.func
-def test_ret_of_pts(pts, ret):
-    for i in pts:
-        pts[i] = [1, 0]
+control_signal = [
+    [0, 0],
+    [0, 0],
+    [1, 1],
+    [1, 1],
+    [1, 1],
+    [1, 1],
+    [-1, -1],
+    [-1, -1],
+    [-1, -1],
+    [1, -1],
+    [1, -1],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0]
+]
 
-@ti.kernel
-def test_main():
-    test_ret_of_pts(robot_wings_coord, robot_wings_index)
+window = ti.ui.Window('Window Title', res = (640, 360), pos = (150, 150))
 
-
-print(robot_wings_coord)
-
-
-test_main()
-print(robot_wings_coord)
-# window = ti.ui.Window('Window Title', res = (640, 360), pos = (150, 150))
-
-# while window.running:
-#     step()
-#     canvas = window.get_canvas()
-#     canvas.set_background_color((0.1, 0.2, 0.8))
+while window.running:
+    canvas = window.get_canvas()
+    canvas.set_background_color((0.1, 0.2, 0.8))
     
-#     # Draw the robot body.
-#     line_field = ti.Vector.field(2, dtype=float, shape=(num_links + 1, ))
-#     # Draw the robot wings.
-#     canvas.circles(position, ball_radius, (1., 0.7, 0.2))
+    # Draw the robot body.
+    line_field = ti.Vector.field(2, dtype=float, shape=(num_links + 1, ))
+    # Draw the robot wings.
+    canvas.circles(position, ball_radius, (1., 0.7, 0.2))
+
+    ApplyForce()
