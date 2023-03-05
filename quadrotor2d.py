@@ -2,15 +2,23 @@ from core import *
 
 # Simple robot wings.
 material_space_robot_wings_coord = ti.Vector.field(2, float, shape=(8, ))
+for i, data in enumerate([[0.3, 0.1], [0.4, 0.1], [0.35, 0.1], [0.35, 0], [0.6, 0.1], [0.7, 0.1], [0.65, 0.1], [0.65, 0]]):
+    material_space_robot_wings_coord[i] = data
 robot_wings_coord = ti.Vector.field(2, float, shape=(8, ))
 robot_wings_index = ti.Vector.field(2, int, shape=(4, ))
+for i, data in enumerate([[0, 1], [2, 3], [4, 5], [6, 7]]):
+    robot_wings_index[i] = data
 
 # Simple robot body.
 material_space_robot_body_coord = ti.Vector.field(2, float, shape=(2, ))
+material_space_robot_body_coord[0] = [0.35, 0]
+material_space_robot_body_coord[1] = [0.65, 0]
 robot_body_coord = ti.Vector.field(2, float, shape=(2, ))
 
 # The global transformation of the object.
 trans = Transform2D()
+trans.translation[None] = [0, 0.5]
+trans.rotation[None] = [[1., 0.], [0., 1.]]
 theta = ti.field(float, shape=())
 
 # The velocity and the angular velocity of the object.
@@ -20,25 +28,13 @@ angular_velocity = ti.field(float, shape=())
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())
 
-fps = 60
-time_step = 0.001
+fps = 300
+time_step = 0.0001
 sub_step_num = int(1 / fps / time_step)
 
 mass = 4.
 gravitational_acceleration = tm.vec2([0, -9.8])
 body_inertia = 0.5
-
-@ti.kernel
-def Initialize():
-    # We put all data initialization here.
-    # Initialize robot wings.
-    material_space_robot_wings_coord = [[0.2, 0.1], [0.3, 0.1], [0.25, 0.1], [0.25, 0], [0.7, 0.1], [0.8, 0.1], [0.75, 0.1], [0.75, 0]]
-    material_space_robot_body_coord = [[0.25, 0], [0.75, 0]]
-    robot_wings_index = [[0, 1], [2, 3], [4, 5], [6, 7]]
-    
-    # At t0, the quadrotor is at (0, 0.5) with identity rotation.
-    trans.translation[None] = [0, 0.5]
-    trans.rotation[None] = [[1., 0.], [0., 1.]]
     
 @ti.func
 def Forward(h):
@@ -46,19 +42,27 @@ def Forward(h):
 
 @ti.kernel
 def ForwardEuler():
+    # print("FF:", external_force[None], external_torque[None])
+    # input("Finish print.")
+    # Test for generating a new field
+    new_field = ti.Vector.field(2, float, shape=())
+    new_field[None] = velocity[None]
     trans.translation[None] += velocity[None] * time_step
     theta[None] += angular_velocity[None] * time_step
     trans.UpdateFromTheta(theta[None])
     velocity[None] += external_force[None] * time_step / mass
     angular_velocity[None] += external_torque[None] * time_step / body_inertia
+    # print("FF, rot, theta:", theta[None], trans.rotation[None])
 
 @ti.kernel
 def ApplyForce(left_delta: float, right_delta: float):
-    external_force = gravitational_acceleration * mass
-    g = external_force.norm()
+    external_force[None] = gravitational_acceleration * mass
+    g = external_force[None].norm()
     force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
-    external_force += force_direction * (left_delta + right_delta) * g
-    external_torque = (left_delta - right_delta) * g * 0.25
+    external_force[None] += force_direction * (left_delta + right_delta + 1) * g
+    external_torque[None] = (left_delta - right_delta) * g * 0.25
+    # print("AP:", external_force[None], external_torque[None])
+    # print("AP, rot:", trans.rotation[None])
 
 @ti.func
 def RungeKutta2():
@@ -73,33 +77,45 @@ def step():
     pass
 
 control_signal = [
-    [0, 0],
-    [0, 0],
-    [1, 1],
-    [1, 1],
-    [1, 1],
-    [1, 1],
-    [-1, -1],
-    [-1, -1],
-    [-1, -1],
-    [1, -1],
-    [1, -1],
+    [.01, .01],
+    [.01, .01],
+    [.01, .01],
+    [.01, .01],
+    [-.01, -.01],
+    [-.01, -.01],
+    [-.01, -.01],
+    [.01, -.01],
+    [-.01, .01],
     [0, 0],
     [0, 0],
     [0, 0],
     [0, 0]
 ]
 
-window = ti.ui.Window('Window Title', res = (640, 360), pos = (150, 150))
 
 i = 0
+
+# for j in range(sub_step_num):
+#     ApplyForce(*control_signal[i % len(control_signal)])
+#     ForwardEuler()
+#     input("mid")
+
+# input("Fin.")
+
+window = ti.ui.Window('Window Title', res = (640, 360), pos = (150, 150))
+canvas = window.get_canvas()
+canvas.set_background_color((0.1, 0.1, 0.1))
+
+# trans.ApplyToPoints(material_space_robot_body_coord, robot_body_coord)
+# # while window.running:
+# #     canvas.lines(robot_body_coord, 0.04, color=(0.1, 0.7, 0.3))
+# #     window.show()
+
+# Test for 
 while window.running:
-    canvas = window.get_canvas()
-    canvas.set_background_color((0.1, 0.2, 0.8))
-    
     # Draw the robot body.
     trans.ApplyToPoints(material_space_robot_body_coord, robot_body_coord)
-    canvas.lines(robot_body_coord, 0.04, robot_wings_index, color=(0.1, 0.7, 0.3))
+    canvas.lines(robot_body_coord, 0.04, color=(0.1, 0.7, 0.3))
 
     # Draw the robot wings.
     trans.ApplyToPoints(material_space_robot_wings_coord, robot_wings_coord)
