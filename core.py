@@ -4,21 +4,22 @@ ti.init(arch=ti.cpu)
 
 @ti.data_oriented
 class Transform2D:
-    rotation: tm.mat2
-    translation: tm.vec2
+    def __init__(self) -> None:
+        self.rotation = ti.Matrix.field(2, 2, float, shape=())
+        self.translation = ti.Vector.field(2, float, shape=())
     
     @ti.func
     def ApplyToPoint(self, pt):
-        return self.rotation @ pt + self.translation
+        return self.rotation[None] @ pt + self.translation[None]
     
-    @ti.func
-    def ApplyToPoints(self, pts, ret):
+    @ti.kernel
+    def ApplyToPoints(self, pts: ti.template(), ret: ti.template()):
         for i in pts:
             ret[i] = self.ApplyToPoint(pts[i])
 
     @ti.func
-    def UpdateFromTheta(self, t):
-        self.rotation = tm.mat2([[tm.cos(t[None]), -tm.sin(t[None])], [tm.sin(t[None]), tm.cos(t[None])]])
+    def UpdateFromTheta(self, t):   
+        self.rotation[None] = [[tm.cos(t), -tm.sin(t)], [tm.sin(t), tm.cos(t)]]
     
     @ti.func
     def Inverse(self):
