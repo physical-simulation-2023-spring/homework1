@@ -1,13 +1,13 @@
 from core import *
 
-# Simple robot wings.
-material_space_robot_wings_coord = ti.Vector.field(2, float, shape=(8, ))
+# Simple robot propeller.
+material_space_robot_propeller_coord = ti.Vector.field(2, float, shape=(8, ))
 for i, data in enumerate([[0.3, 0.1], [0.4, 0.1], [0.35, 0.1], [0.35, 0], [0.6, 0.1], [0.7, 0.1], [0.65, 0.1], [0.65, 0]]):
-    material_space_robot_wings_coord[i] = data
-robot_wings_coord = ti.Vector.field(2, float, shape=(8, ))
-robot_wings_index = ti.Vector.field(2, int, shape=(4, ))
+    material_space_robot_propeller_coord[i] = data
+robot_propeller_coord = ti.Vector.field(2, float, shape=(8, ))
+robot_propeller_index = ti.Vector.field(2, int, shape=(4, ))
 for i, data in enumerate([[0, 1], [2, 3], [4, 5], [6, 7]]):
-    robot_wings_index[i] = data
+    robot_propeller_index[i] = data
 
 # Simple robot body.
 material_space_robot_body_coord = ti.Vector.field(2, float, shape=(2, ))
@@ -44,9 +44,6 @@ def Forward(h):
 def ForwardEuler():
     # print("FF:", external_force[None], external_torque[None])
     # input("Finish print.")
-    # Test for generating a new field
-    new_field = ti.Vector.field(2, float, shape=())
-    new_field[None] = velocity[None]
     trans.translation[None] += velocity[None] * time_step
     theta[None] += angular_velocity[None] * time_step
     trans.UpdateFromTheta(theta[None])
@@ -117,9 +114,9 @@ while window.running:
     trans.ApplyToPoints(material_space_robot_body_coord, robot_body_coord)
     canvas.lines(robot_body_coord, 0.04, color=(0.1, 0.7, 0.3))
 
-    # Draw the robot wings.
-    trans.ApplyToPoints(material_space_robot_wings_coord, robot_wings_coord)
-    canvas.lines(robot_wings_coord, 0.01, robot_wings_index, (1., 0.7, 0.2))
+    # Draw the robot propeller.
+    trans.ApplyToPoints(material_space_robot_propeller_coord, robot_propeller_coord)
+    canvas.lines(robot_propeller_coord, 0.01, robot_propeller_index, (1., 0.7, 0.2))
 
     for j in range(sub_step_num):
         ApplyForce(*control_signal[i % len(control_signal)])
