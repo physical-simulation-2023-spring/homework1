@@ -23,6 +23,10 @@ theta = ti.field(float, shape=())
 velocity = ti.Vector.field(2, float, shape=())
 angular_velocity = ti.field(float, shape=())
 
+var_name = ["trans", "theta", "velocity", "angular_velocity"]
+# var_q = {var: ti.(eval(var)) for var in var_name}
+# var_q_dot = {var: ti.zero(eval(var)) for var in var_name}
+
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())
 
@@ -36,9 +40,28 @@ body_inertia = 0.5
 
 goal = ti.Vector.field(2, float, shape=(1, ))
 
+force_visualization = ti.Vector.field(2, float, shape=())
+
+@ti.func
+def F(var_q):
+    # Newton-Euler equation: compute time derivative of var_q.
+    var_q_dot = {var: ti.zero(var_q[var]) for var in var_name}
+    var_q_dot["trans"] = var_q["velocity"]
+    var_q_dot["theta"] = var_q["angular_velocity"]
+    var_q_dot["velocity"] = external_force[None] / mass
+    var_q_dot["angular_velocity"] = external_torque[None] / body_inertia
+    return var_q_dot
+    
 # You may want to define your own variables or functions here.
 # -- YOUR CODE BEGINS --
+# TODO: Visualize the force.
+# F: q -> q_dot
+# Script = ...
+# A set of input and output ...
+# 
 
+# R + h dR; R svd -> USV -> UV
+# R @ Rod(w * delta t)
 
 # -- END OF YOUR CODE --
 
@@ -56,11 +79,33 @@ def Initialize():
 
 @ti.kernel
 def ForwardEuler():
-    trans.translation[None] += velocity[None] * time_step
-    theta[None] += angular_velocity[None] * time_step
+    var_q = {"trans": trans.translation[None], "theta": theta[None], 
+             "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
+    var_q_dot = F(var_q)
+    trans.translation[None] += var_q_dot["trans"] * time_step
+    theta[None] += var_q_dot["theta"] * time_step
     trans.UpdateRotationFromTheta(theta[None])
-    velocity[None] += external_force[None] * time_step / mass
-    angular_velocity[None] += external_torque[None] * time_step / body_inertia
+    velocity[None] += var_q_dot["velocity"] * time_step
+    angular_velocity[None] += var_q_dot["angular_velocity"] * time_step
+
+@ti.kernel
+def RungeKutta2():
+    var_q = {"trans": trans.translation[None], "theta": theta[None], 
+             "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
+    var_q_dot_half = F(var_q)
+    h_half = time_step / 2
+    var_q_half = {
+        "trans": var_q["trans"] + var_q_dot_half["trans"] * h_half, 
+        "theta": var_q["theta"] + var_q_dot_half["theta"] * h_half,  
+        "velocity": var_q["velocity"] + var_q_dot_half["velocity"] * h_half, 
+        "angular_velocity": var_q["angular_velocity"] + var_q_dot_half["angular_velocity"] * h_half
+    }
+    var_q_dot = F(var_q_half)
+    trans.translation[None] += var_q_dot["trans"] * time_step
+    theta[None] += var_q_dot["theta"] * time_step
+    trans.UpdateRotationFromTheta(theta[None])
+    velocity[None] += var_q_dot["velocity"] * time_step
+    angular_velocity[None] += var_q_dot["angular_velocity"] * time_step    
 
 @ti.kernel
 def ApplyForce(left_delta: float, right_delta: float):
@@ -69,19 +114,6 @@ def ApplyForce(left_delta: float, right_delta: float):
     force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
     external_force[None] += force_direction * (left_delta + right_delta + 1) * g
     external_torque[None] = (left_delta - right_delta) * g * 0.25
-
-@ti.kernel
-def RungeKutta2():
-    # -- YOUR CODE BEGINS --
-    pass
-    # -- END OF YOUR CODE --
-    
-
-@ti.kernel
-def RungeKutta4():
-    # -- YOUR CODE BEGINS --
-    pass
-    # -- END OF YOUR CODE --
 
 @ti.kernel
 def YControllor(y_goal: float) -> float:
@@ -106,7 +138,7 @@ def XControllor(x_goal: float) -> float:
     return - (x - target) - 2 * dot_x
 
 i = 0
-time_integrate_method = ["Forward Euler", "RK-2", "RK-4"]
+time_integrate_method = ["Forward Euler", "RK-2"]
 time_integrate_method_index = 0
 
 window = ti.ui.Window('Quadrotor 2D', res = (640, 360), pos = (150, 150), vsync=True)
@@ -117,22 +149,23 @@ canvas.set_background_color((0.25, 0.25, 0.25))
 Initialize()
 
 while window.running:
+    # gui.gui.arrow([0.1, 0.1], [1, 0])
     if window.get_event(ti.ui.PRESS):
-        if i > 20:
+        if i > 10:
             if window.event.key == 'r': 
                 Initialize()
             elif window.event.key in [ti.ui.ESCAPE]: 
                 break
             if window.is_pressed(ti.ui.LEFT, 'a'):
-                goal[0][0] -= .05
+                goal[0][0] -= .05 if goal[0][0] > 0.1 else 0
             if window.is_pressed(ti.ui.RIGHT, 'd'):
-                goal[0][0] += .05
+                goal[0][0] += .05 if goal[0][0] < 0.9 else 0
             if window.is_pressed(ti.ui.UP, 'w'):
-                goal[0][1] += .1
+                goal[0][1] += .1 if goal[0][1] < 0.85 else 0
             if window.is_pressed(ti.ui.DOWN, 's'):
-                goal[0][1] -= .1
+                goal[0][1] -= .1 if goal[0][1] > 0.15 else 0
             if window.is_pressed(ti.ui.SHIFT):
-                time_integrate_method_index = (time_integrate_method_index + 1) % 3
+                time_integrate_method_index = 1 - time_integrate_method_index
                 print(f"Change to {time_integrate_method[time_integrate_method_index]} time integration.")
             i = 0
 
@@ -155,9 +188,9 @@ while window.running:
             ForwardEuler()
         elif time_integrate_method_index == 1:
             RungeKutta2()
-        else:
-            RungeKutta4()
         
     i += 1
 
     window.show()
+
+# visualize the force

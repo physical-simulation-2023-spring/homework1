@@ -81,7 +81,12 @@ def ApplyForce(delta1: float, delta2: float, delta3: float, delta4: float):
     g = external_force[None].norm()
     force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
     external_force[None] += force_direction * (delta1 + delta2 + delta3 + delta4 + 1) * g
-    external_torque[None] = (left_delta - right_delta) * g * 0.25
+    external_torque[None] = [0, 0, 0]
+    for i in rel_loc:
+        external_torque[None] += rel_loc[i].cross_product(force_direction)
+    external_torque[None] += (delta1 - delta2 + delta3 - delta4) * force_direction * 0.01
+
+
 
 i = 0
 time_integrate_method = ["Forward Euler", "RK-2", "RK-4"]
