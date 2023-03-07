@@ -40,6 +40,8 @@ goal = ti.Vector.field(2, float, shape=(1, ))
 
 force_visualization_coord = ti.Vector.field(2, float, shape=(8, ))
 force_visualization_index = ti.Vector.field(2, int, shape=(6, ))
+for i, data in enumerate([[0, 1], [1, 2], [1, 3], [4, 5], [5, 6], [5, 7]]):
+    force_visualization_index[i] = data
 
 @ti.func
 def F(var_q):
@@ -68,6 +70,8 @@ def F(var_q):
 def Initialize():
     trans.translation[None] = [0, 0.5]
     trans.rotation[None] = [[1., 0.], [0., 1.]]
+    velocity[None] = [0, 0]
+    angular_velocity[None] = 0
     theta[None] = 0
     goal[0] = [0.5, 0.5]
     # You may want to initialize your variables here.
@@ -111,19 +115,25 @@ def RungeKutta2():
 def ApplyForce(left_delta: float, right_delta: float):
     external_force[None] = gravitational_acceleration * mass
     g = external_force[None].norm()
-    force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
+    force_direction = trans.rotation[None] @ tm.vec2([0, 1])
     external_force[None] += force_direction * (left_delta + right_delta + 1) * g
     external_torque[None] = (left_delta - right_delta) * g * 0.25
 
 @ti.kernel
 def VisualizeForce(left_delta: float, right_delta: float):
-    force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
-    arrow_left_direction = trans.rotation @ tm.vec2([-1, -1])
-    arrow_right_direction = trans.rotation @ tm.vec2([1, -1])
+    force_direction = trans.rotation[None] @ tm.vec2([0, 1])
+    arrow_left_direction = trans.rotation[None] @ tm.vec2([-0.3, -1])
+    arrow_right_direction = trans.rotation[None] @ tm.vec2([0.3, -1])
     force_left_loc = robot_propeller_coord[2]
     force_right_loc = robot_propeller_coord[6]
     force_visualization_coord[0] = force_left_loc + force_direction * 0.03
-    force_visualization_coord[1] = force_left_loc + force_direction * 0.03
+    force_visualization_coord[1] = force_left_loc + force_direction * (0.13 + left_delta * 0.4)
+    force_visualization_coord[2] = force_visualization_coord[1] + arrow_left_direction * 0.03
+    force_visualization_coord[3] = force_visualization_coord[1] + arrow_right_direction * 0.03
+    force_visualization_coord[4] = force_right_loc + force_direction * 0.03
+    force_visualization_coord[5] = force_right_loc + force_direction * (0.13 + right_delta * 0.4)
+    force_visualization_coord[6] = force_visualization_coord[5] + arrow_left_direction * 0.03
+    force_visualization_coord[7] = force_visualization_coord[5] + arrow_right_direction * 0.03
 
 
 # PD Control.
@@ -133,21 +143,21 @@ def YControllor(y_goal: float) -> float:
     target = clamp(y_goal, 0.1, 0.9)
     y = trans.translation[None][1]
     dot_y = velocity[None][1]
-    return - 6. * (y - target) - 15. * dot_y
+    return - 15 * (y - target) - 15 * dot_y
 
 @ti.kernel
 def ThetaControllor(theta_goal: float) -> float:
     # PD control for theta.
     target = clamp(theta_goal, -tm.pi / 30, tm.pi / 30)
-    return - 30. * (theta[None] - target) - 10. * angular_velocity[None]
+    return - 9 * (theta[None] - target) - 15 * angular_velocity[None]
 
 @ti.kernel
 def XControllor(x_goal: float) -> float:
-    # X controllor is a 2nd-level PD controllor.
+    # X controllor is a 2nd-level controllor.
     target = clamp(x_goal, -0.4, 0.4)
     x = trans.translation[None][0]
     dot_x = velocity[None][0]
-    return - (x - target) - 2 * dot_x
+    return 5 * (x - target) + 15 * dot_x - theta[None]
 
 i = 0
 time_integrate_method = ["Forward Euler", "RK-2"]
@@ -196,11 +206,13 @@ while window.running:
         delta = YControllor(goal[0][1])
         theta_delta = ThetaControllor(XControllor(goal[0][0] - 0.5))
         ApplyForce(delta + theta_delta, delta - theta_delta)
+        VisualizeForce(delta + theta_delta, delta - theta_delta)
         if time_integrate_method_index == 0:
             ForwardEuler()
         elif time_integrate_method_index == 1:
             RungeKutta2()
-        
+    
+    canvas.lines(force_visualization_coord, 0.006, force_visualization_index, (1., 0.1, 0.1))
     i += 1
 
     window.show()
