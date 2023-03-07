@@ -7,7 +7,7 @@ robot_propeller_index = ti.Vector.field(2, int, shape=(4, ))
 for i, data in enumerate([[0.35, 0.1], [0.45, 0.1], [0.4, 0.1], [0.4, 0], [0.55, 0.1], [0.65, 0.1], [0.6, 0.1], [0.6, 0]]):
     material_space_robot_propeller_coord[i] = data
 for i, data in enumerate([[0, 1], [2, 3], [4, 5], [6, 7]]):
-        robot_propeller_index[i] = data
+    robot_propeller_index[i] = data
 
 # Simple robot body.
 material_space_robot_body_coord = ti.Vector.field(2, float, shape=(2, ))
@@ -24,8 +24,6 @@ velocity = ti.Vector.field(2, float, shape=())
 angular_velocity = ti.field(float, shape=())
 
 var_name = ["trans", "theta", "velocity", "angular_velocity"]
-# var_q = {var: ti.(eval(var)) for var in var_name}
-# var_q_dot = {var: ti.zero(eval(var)) for var in var_name}
 
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())
@@ -40,7 +38,8 @@ body_inertia = 0.5
 
 goal = ti.Vector.field(2, float, shape=(1, ))
 
-force_visualization = ti.Vector.field(2, float, shape=())
+force_visualization_coord = ti.Vector.field(2, float, shape=(8, ))
+force_visualization_index = ti.Vector.field(2, int, shape=(6, ))
 
 @ti.func
 def F(var_q):
@@ -107,6 +106,7 @@ def RungeKutta2():
     velocity[None] += var_q_dot["velocity"] * time_step
     angular_velocity[None] += var_q_dot["angular_velocity"] * time_step    
 
+# External forces.
 @ti.kernel
 def ApplyForce(left_delta: float, right_delta: float):
     external_force[None] = gravitational_acceleration * mass
@@ -115,6 +115,18 @@ def ApplyForce(left_delta: float, right_delta: float):
     external_force[None] += force_direction * (left_delta + right_delta + 1) * g
     external_torque[None] = (left_delta - right_delta) * g * 0.25
 
+@ti.kernel
+def VisualizeForce(left_delta: float, right_delta: float):
+    force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
+    arrow_left_direction = trans.rotation @ tm.vec2([-1, -1])
+    arrow_right_direction = trans.rotation @ tm.vec2([1, -1])
+    force_left_loc = robot_propeller_coord[2]
+    force_right_loc = robot_propeller_coord[6]
+    force_visualization_coord[0] = force_left_loc + force_direction * 0.03
+    force_visualization_coord[1] = force_left_loc + force_direction * 0.03
+
+
+# PD Control.
 @ti.kernel
 def YControllor(y_goal: float) -> float:
     # PD control for y.
@@ -131,7 +143,7 @@ def ThetaControllor(theta_goal: float) -> float:
 
 @ti.kernel
 def XControllor(x_goal: float) -> float:
-    # X controllor is a 2nd level controllor.
+    # X controllor is a 2nd-level PD controllor.
     target = clamp(x_goal, -0.4, 0.4)
     x = trans.translation[None][0]
     dot_x = velocity[None][0]
