@@ -37,6 +37,9 @@ trans = Transform3D()
 velocity = ti.Vector.field(3, float, shape=())
 angular_velocity = ti.Vector.field(3, float, shape=())
 
+#TODO: modify the 2D translation
+var_name = ["translation", "rotvec", "velocity", "angular_velocity"]
+
 external_force = ti.Vector.field(3, float, shape=())
 external_torque = ti.Vector.field(3, float, shape=())
 
@@ -65,8 +68,24 @@ def ComputeInertia():
 def ComputeInertiaInv():
     return trans.rotation[None] @ body_inertia_inv @ trans.rotation[None]
 
+@ti.func
+def F(var_q: dict) -> dict:
+    # Newton-Euler equation: compute time derivative of var_q.
+    J = ComputeInertia()
+    Jinv = ComputeInertiaInv()
+    var_q_dot = {var: ti.zero(var_q[var]) for var in var_name}
+    var_q_dot["translation"] = var_q["velocity"]
+    var_q_dot["rotvec"] = var_q["angular_velocity"]
+    var_q_dot["velocity"] = external_force[None] / mass
+    w = var_q["angular_velocity"][None]
+    var_q_dot["angular_velocity"] = Jinv @ (external_torque[None] - w.cross_product(J @ w))
+    return var_q_dot
+
+
 @ti.kernel
 def ForwardEuler():
+    var_q = {"translation": trans.translation[None], "rotvec": tm.vec3([0, 0, 0]), 
+             "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
     trans.translation[None] += velocity[None] * time_step
     trans.StepRotationByAngleAxis(angular_velocity[None] * time_step)
     velocity[None] += external_force[None] * time_step / mass
@@ -79,7 +98,7 @@ def ForwardEuler():
 def ApplyForce(delta1: float, delta2: float, delta3: float, delta4: float):
     external_force[None] = gravitational_acceleration * mass
     g = external_force[None].norm()
-    force_direction = tm.vec2([trans.rotation[None][1, 0], trans.rotation[None][1, 1]])
+    force_direction = trans.rotation[None] @ tm.vec3([0, 0, 1])
     external_force[None] += force_direction * (delta1 + delta2 + delta3 + delta4 + 1) * g
     external_torque[None] = [0, 0, 0]
     for i in rel_loc:

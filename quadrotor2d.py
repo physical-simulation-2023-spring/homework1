@@ -7,7 +7,7 @@ robot_propeller_index = ti.Vector.field(2, int, shape=(4, ))
 for i, data in enumerate([[0.35, 0.1], [0.45, 0.1], [0.4, 0.1], [0.4, 0], [0.55, 0.1], [0.65, 0.1], [0.6, 0.1], [0.6, 0]]):
     material_space_robot_propeller_coord[i] = data
 for i, data in enumerate([[0, 1], [2, 3], [4, 5], [6, 7]]):
-    robot_propeller_index[i] = data
+        robot_propeller_index[i] = data
 
 # Simple robot body.
 material_space_robot_body_coord = ti.Vector.field(2, float, shape=(2, ))
@@ -24,6 +24,8 @@ velocity = ti.Vector.field(2, float, shape=())
 angular_velocity = ti.field(float, shape=())
 
 var_name = ["trans", "theta", "velocity", "angular_velocity"]
+# var_q = {var: ti.(eval(var)) for var in var_name}
+# var_q_dot = {var: ti.zero(eval(var)) for var in var_name}
 
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())
@@ -110,7 +112,6 @@ def RungeKutta2():
     velocity[None] += var_q_dot["velocity"] * time_step
     angular_velocity[None] += var_q_dot["angular_velocity"] * time_step    
 
-# External forces.
 @ti.kernel
 def ApplyForce(left_delta: float, right_delta: float):
     external_force[None] = gravitational_acceleration * mass
