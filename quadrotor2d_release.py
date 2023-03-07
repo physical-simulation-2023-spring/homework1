@@ -55,10 +55,9 @@ def Initialize():
 def F(var_q):
     # Newton-Euler equation: compute time derivative of var_q.
     var_q_dot = {var: ti.zero(var_q[var]) for var in var_name}
-    var_q_dot["translation"] = var_q["velocity"]
-    var_q_dot["theta"] = var_q["angular_velocity"]
-    var_q_dot["velocity"] = external_force[None] / mass
-    var_q_dot["angular_velocity"] = external_torque[None] / body_inertia
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
     return var_q_dot
 
 @ti.kernel
@@ -66,11 +65,9 @@ def ForwardEuler():
     var_q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
     var_q_dot = F(var_q)
-    transform.translation[None] += var_q_dot["translation"] * time_step
-    theta[None] += var_q_dot["theta"] * time_step
-    transform.UpdateRotationFromTheta(theta[None])
-    velocity[None] += var_q_dot["velocity"] * time_step
-    angular_velocity[None] += var_q_dot["angular_velocity"] * time_step
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
 
 @ti.kernel
 def RungeKutta2():
@@ -78,18 +75,9 @@ def RungeKutta2():
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
     var_q_dot_half = F(var_q)
     h_half = time_step / 2
-    var_q_half = {
-        "translation": var_q["translation"] + var_q_dot_half["translation"] * h_half, 
-        "theta": var_q["theta"] + var_q_dot_half["theta"] * h_half,  
-        "velocity": var_q["velocity"] + var_q_dot_half["velocity"] * h_half, 
-        "angular_velocity": var_q["angular_velocity"] + var_q_dot_half["angular_velocity"] * h_half
-    }
-    var_q_dot = F(var_q_half)
-    transform.translation[None] += var_q_dot["translation"] * time_step
-    theta[None] += var_q_dot["theta"] * time_step
-    transform.UpdateRotationFromTheta(theta[None])
-    velocity[None] += var_q_dot["velocity"] * time_step
-    angular_velocity[None] += var_q_dot["angular_velocity"] * time_step    
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
 
 @ti.kernel
 def ApplyForce(left_thrust_input: float, right_thrust_input: float):

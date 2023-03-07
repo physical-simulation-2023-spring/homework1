@@ -1,10 +1,10 @@
 import taichi as ti
 import taichi.math as tm
-ti.init(arch=ti.cpu)
+ti.init(arch=ti.gpu)
 
 @ti.data_oriented
 class Transform2D:
-    def __init__(self) -> None:
+    def __init__(self):
         self.rotation = ti.Matrix.field(2, 2, float, shape=())
         self.translation = ti.Vector.field(2, float, shape=())
     
@@ -19,18 +19,17 @@ class Transform2D:
 
     @ti.func
     def UpdateRotationFromTheta(self, t):   
-        self.rotation[None] = [[tm.cos(t), -tm.sin(t)], [tm.sin(t), tm.cos(t)]]
+        self.rotation[None] = tm.rotation2d(t)
     
     @ti.func
     def Inverse(self):
         ret_rotation = self.rotation.transpose()
         ret_translation = - ret_rotation @ self.translation
         return Transform2D(ret_rotation, ret_translation)
-    
-    
+
 @ti.data_oriented
 class Transform3D:
-    def __init__(self) -> None:
+    def __init__(self):
         self.rotation = ti.Matrix.field(3, 3, float, shape=())
         self.translation = ti.Vector.field(3, float, shape=())
     
@@ -42,17 +41,29 @@ class Transform3D:
     def ApplyToPoints(self, pts: ti.template(), ret: ti.template()):
         for i in pts:
             ret[i] = self.ApplyToPoint(pts[i])
-
+    
     @ti.func
-    def StepRotationByAngleAxis(self, axis_angle):
+    def StepRotationByDeltaRotationVector(self, axis_angle):
         t = axis_angle.norm()
         axis = axis_angle / t
-        c = tm.cos(t)
-        s = tm.sin(t)
-        backup_rotation = self.rotation[None]
-        self.rotation[None] = [[c, 0, 0], [0, c, 0], [0, 0, c]]
-        self.rotation[None] += (1 - c) * axis.outer_product(axis) + s * ToSkewSymmetric3D(axis)
-        self.rotation[None] = backup_rotation @ self.rotation[None]
+        m = tm.rot_by_axis(axis, t)
+        delta_rotation = tm.mat3([[m[0, 0], m[0, 1], m[0, 2]], [m[1, 0], m[1, 1], m[1, 2]], [m[2, 0], m[2, 1], m[2, 2]]])
+        self.rotation[None] = delta_rotation @ self.rotation[None]
+    
+    @ti.func
+    def GetYawPitchRoll(self):
+        R = self.rotation[None]
+        t = tm.sqrt(R[0,0] * R[0,0] + R[1,0] * R[1,0])
+        x, y, z = 0., 0., 0.
+        if t > 1e-6:
+            x = tm.atan2( R[2,1], R[2,2])
+            y = tm.atan2(-R[2,0], t)
+            z = tm.atan2( R[1,0], R[0,0])
+        else:
+            x = tm.atan2(-R[1,2], R[1,1])
+            y = tm.atan2(-R[2,0], t)
+            z = 0
+        return tm.vec3([x, y, z])
     
     @ti.func
     def Inverse(self):
@@ -88,3 +99,10 @@ def clamp(v, low, high):
     if v > high:
         ret = high
     return ret
+
+def FillData(field, data):
+    for i, d in enumerate(data):
+        field[i] = d
+
+if __name__ == "__main__":
+    raise NotImplementedError("You should not run the core.py.")
