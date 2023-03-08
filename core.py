@@ -47,22 +47,17 @@ class Transform3D:
         t = axis_angle.norm()
         axis = axis_angle / t
         m = tm.rot_by_axis(axis, t)
-        delta_rotation = tm.mat3([[m[0, 0], m[0, 1], m[0, 2]], [m[1, 0], m[1, 1], m[1, 2]], [m[2, 0], m[2, 1], m[2, 2]]])
+        delta_rotation = m[:3, :3]
         self.rotation[None] = delta_rotation @ self.rotation[None]
     
     @ti.func
     def GetYawPitchRoll(self):
         R = self.rotation[None]
-        t = tm.sqrt(R[0,0] * R[0,0] + R[1,0] * R[1,0])
-        x, y, z = 0., 0., 0.
-        if t > 1e-6:
-            x = tm.atan2( R[2,1], R[2,2])
-            y = tm.atan2(-R[2,0], t)
-            z = tm.atan2( R[1,0], R[0,0])
-        else:
-            x = tm.atan2(-R[1,2], R[1,1])
-            y = tm.atan2(-R[2,0], t)
-            z = 0
+        t = tm.sqrt(R[0,1] * R[0,1] + R[1,1] * R[1,1])
+        # Small t makes error. It's OK if we do not have large pitch.
+        x = tm.atan2(-R[2,0], R[2,2])
+        y = tm.atan2( R[2,1], t)
+        z = tm.atan2(-R[0,1], R[1,1])
         return tm.vec3([x, y, z])
     
     @ti.func
