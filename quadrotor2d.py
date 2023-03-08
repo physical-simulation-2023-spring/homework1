@@ -61,7 +61,7 @@ def F(var_q):
     var_q_dot["angular_velocity"] = external_torque[None] / body_inertia
     return var_q_dot
 
-@ti.kernel
+@ti.func
 def ForwardEuler():
     var_q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
@@ -72,7 +72,7 @@ def ForwardEuler():
     velocity[None] += var_q_dot["velocity"] * time_step
     angular_velocity[None] += var_q_dot["angular_velocity"] * time_step
 
-@ti.kernel
+@ti.func
 def RungeKutta2():
     var_q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
@@ -91,7 +91,7 @@ def RungeKutta2():
     velocity[None] += var_q_dot["velocity"] * time_step
     angular_velocity[None] += var_q_dot["angular_velocity"] * time_step    
 
-@ti.kernel
+@ti.func
 def ApplyForce(left_thrust_input: float, right_thrust_input: float):
     left_thrust = clamp(left_thrust_input, 10, 30)
     right_thrust = clamp(right_thrust_input, 10, 30)
@@ -119,7 +119,7 @@ def VisualizeForce(left_thrust_input: float, right_thrust_input: float):
     force_visualization_vertex[7] = force_visualization_vertex[5] + arrow_right_direction * 0.03
 
 # PD Control.
-@ti.kernel
+@ti.func
 def YControllor(y_goal: float) -> float:
     # PD control for y.
     target = clamp(y_goal, 0, 1)
@@ -127,19 +127,30 @@ def YControllor(y_goal: float) -> float:
     dot_y = velocity[None][1]
     return (- 15 * (y - target) - 15 * dot_y + 0.5) * gravity
 
-@ti.kernel
+@ti.func
 def ThetaControllor(theta_goal: float) -> float:
     # PD control for theta.
-    target = clamp(theta_goal, -tm.pi / 30, tm.pi / 30)
+    target = clamp(theta_goal, -tm.pi / 15, tm.pi / 15)
     return (9 * (theta[None] - target) + 15 * angular_velocity[None]) * gravity
 
-@ti.kernel
+@ti.func
 def XControllor(x_goal: float) -> float:
     # X controllor is a 2nd-level controllor.
     target = clamp(x_goal, -0.5, 0.5)
     x = transform.translation[None][0]
     dot_x = velocity[None][0]
     return 5 * (x - target) + 15 * dot_x - theta[None]
+
+@ti.kernel
+def substep(use_RK2: bool) -> tm.vec2:
+    main_thrust = YControllor(goal[0][1])
+    thrust_delta = ThetaControllor(XControllor(goal[0][0] - 0.5))
+    ApplyForce(main_thrust + thrust_delta, main_thrust - thrust_delta)
+    if use_RK2:
+        RungeKutta2()
+    else:
+        ForwardEuler()
+    return tm.vec2([main_thrust + thrust_delta, main_thrust - thrust_delta])
 
 i = 0
 time_integrate_method = "Forward Euler"
@@ -183,16 +194,10 @@ while window.running:
     canvas.circles(goal, 0.01, color=(1., 0.1, 0.1))
 
     for _ in range(sub_step_num):
-        main_thrust = YControllor(goal[0][1])
-        thrust_delta = ThetaControllor(XControllor(goal[0][0] - 0.5))
-        ApplyForce(main_thrust + thrust_delta, main_thrust - thrust_delta)
-        if time_integrate_method == "RK-2":
-            RungeKutta2()
-        else:
-            ForwardEuler()
+        ret = substep(time_integrate_method == "RK-2")
 
     # Visualize the thrust.
-    VisualizeForce(main_thrust + thrust_delta, main_thrust - thrust_delta)
+    VisualizeForce(ret[0], ret[1])
     canvas.lines(force_visualization_vertex, 0.006, force_visualization_index, (0.3, 0.3, 1))
     i += 1
 
