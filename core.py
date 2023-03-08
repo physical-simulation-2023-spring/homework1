@@ -43,14 +43,6 @@ class Transform3D:
             ret[i] = self.ApplyToPoint(pts[i])
     
     @ti.func
-    def StepRotationByDeltaRotationVector(self, axis_angle):
-        t = axis_angle.norm()
-        axis = axis_angle / t
-        m = tm.rot_by_axis(axis, t)
-        delta_rotation = m[:3, :3]
-        self.rotation[None] = delta_rotation @ self.rotation[None]
-    
-    @ti.func
     def GetYawPitchRoll(self):
         R = self.rotation[None]
         t = tm.sqrt(R[0,1] * R[0,1] + R[1,1] * R[1,1])
@@ -85,6 +77,14 @@ def ToSkewSymmetric3D(w):
 @ti.func
 def FromSkewSymmetric3D(m):
     return tm.vec3([m[2, 1], m[0, 2], m[1, 0]])
+
+@ti.func
+def StepRotationByDeltaRotationVector(rotmat, axis_angle):
+    t = axis_angle.norm()
+    axis = axis_angle / t
+    m = tm.rot_by_axis(axis, t)
+    delta_rotation = m[:3, :3]
+    return delta_rotation @ rotmat
 
 @ti.func
 def clamp(v, low, high):
