@@ -20,12 +20,7 @@ class Transform2D:
     @ti.func
     def UpdateRotationFromTheta(self, t):   
         self.rotation[None] = tm.rotation2d(t)
-    
-    @ti.func
-    def Inverse(self):
-        ret_rotation = self.rotation.transpose()
-        ret_translation = - ret_rotation @ self.translation
-        return Transform2D(ret_rotation, ret_translation)
+
 
 @ti.data_oriented
 class Transform3D:
@@ -51,32 +46,7 @@ class Transform3D:
         y = tm.atan2( R[2,1], t)
         z = tm.atan2(-R[0,1], R[1,1])
         return tm.vec3([x, y, z])
-    
-    @ti.func
-    def Inverse(self):
-        ret_rotation = self.rotation.transpose()
-        ret_translation = - ret_rotation @ self.translation
-        return Transform3D(ret_rotation, ret_translation)
 
-@ti.func
-def ToSkewSymmetric2D(w):
-    return tm.mat2([[0, -w[None]], [w[None], 0]])
-
-@ti.func
-def FromSkewSymmetric2D(m):
-    return m[1, 0]
-
-@ti.func
-def ToSkewSymmetric3D(w):
-    return tm.mat3([
-        [0, -w[2], w[1]],
-        [w[2], 0, -w[0]],
-        [-w[1], w[0], 0]
-    ])
-
-@ti.func
-def FromSkewSymmetric3D(m):
-    return tm.vec3([m[2, 1], m[0, 2], m[1, 0]])
 
 @ti.func
 def StepRotationByDeltaRotationVector(rotmat, w, h):
@@ -100,6 +70,3 @@ def clamp(v, low, high):
 def FillData(field, data):
     for i, d in enumerate(data):
         field[i] = d
-
-if __name__ == "__main__":
-    raise NotImplementedError("You should not run the core.py.")

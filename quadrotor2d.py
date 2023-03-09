@@ -1,4 +1,4 @@
-from core import *
+from release.util import *
 
 # Simple robot propeller.
 material_space_robot_propeller_vertex = ti.Vector.field(2, float, shape=(8, ))
@@ -21,8 +21,6 @@ theta = ti.field(float, shape=())
 # The velocity and the angular velocity of the object.
 velocity = ti.Vector.field(2, float, shape=())
 angular_velocity = ti.field(float, shape=())
-
-name = ["translation", "theta", "velocity", "angular_velocity"]
 
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())

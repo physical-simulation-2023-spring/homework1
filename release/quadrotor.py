@@ -1,4 +1,4 @@
-from release.util import *
+from util import *
 import trimesh
 import numpy as np
 
@@ -63,54 +63,43 @@ def Initialize():
     goal[0] = [0., 1, 0.]
 
 @ti.func
-def ComputeInertia(rotmat):
-    return rotmat @ body_inertia @ rotmat.transpose()
+def ComputeInertia(rotmat: tm.mat3) -> tm.mat3:
+    ret = ti.zero(rotmat)
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
+    return ret
 
 @ti.func
-def ComputeInertiaInv(rotmat):
-    return rotmat @ body_inertia_inv @ rotmat.transpose()
+def ComputeInertiaInv(rotmat: tm.mat3) -> tm.mat3:
+    ret = ti.zero(rotmat)
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
+    return ret
 
 @ti.func
 def F(q):
     # Newton-Euler equation: compute time derivative of q.
-    J = ComputeInertia(q["rotmat"])
-    Jinv = ComputeInertiaInv(q["rotmat"])
     q_dot = {var: ti.zero(q[var]) for var in q}
-    q_dot["translation"] = q["velocity"]
-    q_dot["rotvec"] = q["angular_velocity"]
-    q_dot["velocity"] = external_force[None] / mass
-    w = q["angular_velocity"]
-    q_dot["angular_velocity"] = Jinv @ (external_torque[None] - w.cross(J @ w))
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
     return q_dot
 
 @ti.func
 def ForwardEuler():
-    q = {"translation": transform.translation[None], "rotmat": transform.rotation[None], "rotvec": tm.vec3([0, 0, 0]), 
-             "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
-    q_dot = F(q)
-    transform.translation[None] += q_dot["translation"] * time_step
-    transform.rotation[None] = StepRotationByDeltaRotationVector(transform.rotation[None], q_dot["rotvec"], time_step)
-    velocity[None] += q_dot["velocity"] * time_step
-    angular_velocity[None] += q_dot["angular_velocity"] * time_step
+    h = time_step
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
 
 @ti.func
 def RungeKutta2():
-    q = {"translation": transform.translation[None], "rotmat": transform.rotation[None], "rotvec": tm.vec3([0, 0, 0]), 
-             "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
-    q_dot_half = F(q)
     h_half = time_step / 2
-    q_half = {
-        "translation": q["translation"] + q_dot_half["translation"] * h_half, 
-        "rotmat": StepRotationByDeltaRotationVector(transform.rotation[None], q_dot_half["rotvec"], h_half),
-        "rotvec": tm.vec3([0, 0, 0]),
-        "velocity": q["velocity"] + q_dot_half["velocity"] * h_half, 
-        "angular_velocity": q["angular_velocity"] + q_dot_half["angular_velocity"] * h_half
-    }
-    q_dot = F(q_half)
-    transform.translation[None] += q_dot["translation"] * time_step
-    transform.rotation[None] = StepRotationByDeltaRotationVector(transform.rotation[None], q_dot["rotvec"], time_step)
-    velocity[None] += q_dot["velocity"] * time_step
-    angular_velocity[None] += q_dot["angular_velocity"] * time_step 
+    # -- YOUR CODE BEGINS HERE --
+    
+    # -- THE END OF YOUR CODE --
 
 @ti.func
 def ApplyForce(thrust_input):
