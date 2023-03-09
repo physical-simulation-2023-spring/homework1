@@ -22,7 +22,7 @@ theta = ti.field(float, shape=())
 velocity = ti.Vector.field(2, float, shape=())
 angular_velocity = ti.field(float, shape=())
 
-var_name = ["translation", "theta", "velocity", "angular_velocity"]
+name = ["translation", "theta", "velocity", "angular_velocity"]
 
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())
@@ -52,28 +52,28 @@ def Initialize():
     goal[0] = [0.5, 0.5]
 
 @ti.func
-def F(var_q):
-    # Newton-Euler equation: compute time derivative of var_q.
-    var_q_dot = {var: ti.zero(var_q[var]) for var in var_name}
+def F(q):
+    # Newton-Euler equation: compute time derivative of q.
+    q_dot = {var: ti.zero(q[var]) for var in name}
     # -- YOUR CODE BEGINS HERE --
     
     # -- THE END OF YOUR CODE --
-    return var_q_dot
+    return q_dot
 
 @ti.func
 def ForwardEuler():
-    var_q = {"translation": transform.translation[None], "theta": theta[None], 
+    q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
-    var_q_dot = F(var_q)
+    q_dot = F(q)
     # -- YOUR CODE BEGINS HERE --
     
     # -- THE END OF YOUR CODE --
 
 @ti.func
 def RungeKutta2():
-    var_q = {"translation": transform.translation[None], "theta": theta[None], 
+    q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
-    var_q_dot_half = F(var_q)
+    q_dot_half = F(q)
     h_half = time_step / 2
     # -- YOUR CODE BEGINS HERE --
     

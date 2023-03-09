@@ -79,12 +79,14 @@ def FromSkewSymmetric3D(m):
     return tm.vec3([m[2, 1], m[0, 2], m[1, 0]])
 
 @ti.func
-def StepRotationByDeltaRotationVector(rotmat, axis_angle):
-    t = axis_angle.norm()
-    axis = axis_angle / t
-    m = tm.rot_by_axis(axis, t)
-    delta_rotation = m[:3, :3]
-    return delta_rotation @ rotmat
+def StepRotationByDeltaRotationVector(rotmat, w, h):
+    t = w.norm()
+    ret_mat = rotmat
+    if t > 1e-7:
+        axis = w / t
+        m = tm.rot_by_axis(axis, t * h)
+        ret_mat = m[:3, :3] @ rotmat
+    return ret_mat
 
 @ti.func
 def clamp(v, low, high):

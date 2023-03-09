@@ -22,7 +22,7 @@ theta = ti.field(float, shape=())
 velocity = ti.Vector.field(2, float, shape=())
 angular_velocity = ti.field(float, shape=())
 
-var_name = ["translation", "theta", "velocity", "angular_velocity"]
+name = ["translation", "theta", "velocity", "angular_velocity"]
 
 external_force = ti.Vector.field(2, float, shape=())
 external_torque = ti.field(float, shape=())
@@ -52,44 +52,44 @@ def Initialize():
     goal[0] = [0.5, 0.5]
 
 @ti.func
-def F(var_q):
-    # Newton-Euler equation: compute time derivative of var_q.
-    var_q_dot = {var: ti.zero(var_q[var]) for var in var_name}
-    var_q_dot["translation"] = var_q["velocity"]
-    var_q_dot["theta"] = var_q["angular_velocity"]
-    var_q_dot["velocity"] = external_force[None] / mass
-    var_q_dot["angular_velocity"] = external_torque[None] / body_inertia
-    return var_q_dot
+def F(q):
+    # Newton-Euler equation: compute time derivative of q.
+    q_dot = {var: ti.zero(q[var]) for var in q}
+    q_dot["translation"] = q["velocity"]
+    q_dot["theta"] = q["angular_velocity"]
+    q_dot["velocity"] = external_force[None] / mass
+    q_dot["angular_velocity"] = external_torque[None] / body_inertia
+    return q_dot
 
 @ti.func
 def ForwardEuler():
-    var_q = {"translation": transform.translation[None], "theta": theta[None], 
+    q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
-    var_q_dot = F(var_q)
-    transform.translation[None] += var_q_dot["translation"] * time_step
-    theta[None] += var_q_dot["theta"] * time_step
+    q_dot = F(q)
+    transform.translation[None] += q_dot["translation"] * time_step
+    theta[None] += q_dot["theta"] * time_step
     transform.UpdateRotationFromTheta(theta[None])
-    velocity[None] += var_q_dot["velocity"] * time_step
-    angular_velocity[None] += var_q_dot["angular_velocity"] * time_step
+    velocity[None] += q_dot["velocity"] * time_step
+    angular_velocity[None] += q_dot["angular_velocity"] * time_step
 
 @ti.func
 def RungeKutta2():
-    var_q = {"translation": transform.translation[None], "theta": theta[None], 
+    q = {"translation": transform.translation[None], "theta": theta[None], 
              "velocity": velocity[None], "angular_velocity": angular_velocity[None]}
-    var_q_dot_half = F(var_q)
+    q_dot_half = F(q)
     h_half = time_step / 2
-    var_q_half = {
-        "translation": var_q["translation"] + var_q_dot_half["translation"] * h_half, 
-        "theta": var_q["theta"] + var_q_dot_half["theta"] * h_half,  
-        "velocity": var_q["velocity"] + var_q_dot_half["velocity"] * h_half, 
-        "angular_velocity": var_q["angular_velocity"] + var_q_dot_half["angular_velocity"] * h_half
+    q_half = {
+        "translation": q["translation"] + q_dot_half["translation"] * h_half, 
+        "theta": q["theta"] + q_dot_half["theta"] * h_half,  
+        "velocity": q["velocity"] + q_dot_half["velocity"] * h_half, 
+        "angular_velocity": q["angular_velocity"] + q_dot_half["angular_velocity"] * h_half
     }
-    var_q_dot = F(var_q_half)
-    transform.translation[None] += var_q_dot["translation"] * time_step
-    theta[None] += var_q_dot["theta"] * time_step
+    q_dot = F(q_half)
+    transform.translation[None] += q_dot["translation"] * time_step
+    theta[None] += q_dot["theta"] * time_step
     transform.UpdateRotationFromTheta(theta[None])
-    velocity[None] += var_q_dot["velocity"] * time_step
-    angular_velocity[None] += var_q_dot["angular_velocity"] * time_step    
+    velocity[None] += q_dot["velocity"] * time_step
+    angular_velocity[None] += q_dot["angular_velocity"] * time_step    
 
 @ti.func
 def ApplyForce(left_thrust_input: float, right_thrust_input: float):
@@ -154,6 +154,7 @@ def substep(use_RK2: bool) -> tm.vec2:
 
 i = 0
 time_integrate_method = "Forward Euler"
+verbose = False
 
 window = ti.ui.Window('Quadrotor 2D', res = (640, 360), pos = (600, 350), vsync=True)
 gui = window.get_gui()
@@ -177,28 +178,31 @@ while window.running:
                 goal[0][1] += .1 if goal[0][1] < 0.85 else 0
             if window.is_pressed(ti.ui.DOWN, 's'):
                 goal[0][1] -= .1 if goal[0][1] > 0.15 else 0
+            if window.is_pressed('v'):
+                verbose = not verbose
             if window.is_pressed(ti.ui.CTRL):
                 time_integrate_method = "Forward Euler" if time_integrate_method == "RK-2" else "RK-2"
                 print(f"Change to {time_integrate_method} time integration.")
             i = 0
 
+    for _ in range(sub_step_num):
+        ret = substep(time_integrate_method == "RK-2")
+
     # Draw the robot body.
     transform.ApplyToPoints(material_space_robot_body_vertex, robot_body_vertex)
     canvas.lines(robot_body_vertex, 0.04, color=(0.1, 0.7, 0.3))
 
-    # Draw the robot propeller.
+    # Draw the propellers.
     transform.ApplyToPoints(material_space_robot_propeller_vertex, robot_propeller_vertex)
     canvas.lines(robot_propeller_vertex, 0.01, robot_propeller_index, (1., 0.7, 0.2))
     
-    # Draw the target point.
-    canvas.circles(goal, 0.01, color=(1., 0.1, 0.1))
+    if verbose:
+        # Draw the target point.
+        canvas.circles(goal, 0.01, color=(1., 0.1, 0.1))
 
-    for _ in range(sub_step_num):
-        ret = substep(time_integrate_method == "RK-2")
-
-    # Visualize the thrust.
-    VisualizeForce(ret[0], ret[1])
-    canvas.lines(force_visualization_vertex, 0.006, force_visualization_index, (0.3, 0.3, 1))
-    i += 1
-
+        # Visualize the thrust.
+        VisualizeForce(ret[0], ret[1])
+        canvas.lines(force_visualization_vertex, 0.006, force_visualization_index, (0.3, 0.3, 1))
+    
     window.show()
+    i += 1
