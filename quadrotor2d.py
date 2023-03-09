@@ -152,7 +152,7 @@ def substep(use_RK2: bool) -> tm.vec2:
 
 i = 0
 time_integrate_method = "Forward Euler"
-verbose = False
+verbose = True
 
 window = ti.ui.Window('Quadrotor 2D', res = (640, 360), pos = (600, 350), vsync=True)
 gui = window.get_gui()
@@ -160,6 +160,8 @@ canvas = window.get_canvas()
 canvas.set_background_color((0.15, 0.15, 0.15))
 
 Initialize()
+
+video_manager = ti.tools.VideoManager(output_dir="./output", framerate=60, automatic_build=False)
 
 while window.running:
     if window.get_event(ti.ui.PRESS):
@@ -202,5 +204,8 @@ while window.running:
         VisualizeForce(ret[0], ret[1])
         canvas.lines(force_visualization_vertex, 0.006, force_visualization_index, (0.3, 0.3, 1))
     
+    video_manager.write_frame(window.get_image_buffer_as_numpy())
     window.show()
     i += 1
+
+video_manager.make_video(gif=True, mp4=False)

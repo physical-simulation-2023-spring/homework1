@@ -6,7 +6,7 @@ import numpy as np
 body_m = np.array([[np.sqrt(2) / 4, 0, np.sqrt(2) / 4], [0, .5, 0], [-np.sqrt(2) / 4, 0, np.sqrt(2) / 4]])
 body_mesh = []
 for i in range(1, 6):
-    mesh = trimesh.load_mesh(f"./mesh/body{i}.obj")
+    mesh = trimesh.load_mesh(f"./release/mesh/body{i}.obj")
     v = ti.Vector.field(3, float, shape=(len(mesh.vertices),))
     v0 = ti.Vector.field(3, float, shape=(len(mesh.vertices),))
     v0.from_numpy(np.array(mesh.vertices[:, (1, 2, 0)] @ body_m, dtype=np.float32))
@@ -15,7 +15,7 @@ for i in range(1, 6):
     body_mesh.append((v0, v, t))
 propeller_mesh = []
 for i in range(1, 5):
-    mesh = trimesh.load_mesh(f"./mesh/propeller{i}.obj")
+    mesh = trimesh.load_mesh(f"./release/mesh/propeller{i}.obj")
     v = ti.Vector.field(3, float, shape=(len(mesh.vertices),))
     v0 = ti.Vector.field(3, float, shape=(len(mesh.vertices),))
     v0.from_numpy(np.array(mesh.vertices[:, (1, 2, 0)] @ body_m, dtype=np.float32))
@@ -190,6 +190,8 @@ camera = ti.ui.Camera()
 
 Initialize()
 
+video_manager = ti.tools.VideoManager(output_dir="./output3d", framerate=60, automatic_build=False)
+
 while window.running:
     if window.get_event(ti.ui.PRESS):
         if i > 10:
@@ -243,7 +245,10 @@ while window.running:
         # Visualize the thrust.
         VisualizeForce(ret)
         canvas.lines(force_visualization_vertex, 0.03, force_visualization_index, color=(0.1, 0.7, 0.3))
-    
+
     canvas.scene(scene)
+    video_manager.write_frame(window.get_image_buffer_as_numpy())
     window.show()
     i += 1
+
+video_manager.make_video(gif=True, mp4=False)

@@ -1,4 +1,4 @@
-To prepare necessary pip libraries, please run the following command:
+You should setup a Python 3.10 environment. Then, to prepare necessary pip libraries, please run the following command:
 ```
 pip install -r requirements.txt
 ```
