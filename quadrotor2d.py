@@ -150,62 +150,63 @@ def substep(use_RK2: bool) -> tm.vec2:
         ForwardEuler()
     return tm.vec2([main_thrust + thrust_delta, main_thrust - thrust_delta])
 
-i = 0
-time_integrate_method = "Forward Euler"
-verbose = True
+if __name__ == "__main__":
+    i = 0
+    time_integrate_method = "Forward Euler"
+    verbose = True
 
-window = ti.ui.Window('Quadrotor 2D', res = (640, 360), pos = (600, 350), vsync=True)
-gui = window.get_gui()
-canvas = window.get_canvas()
-canvas.set_background_color((0.15, 0.15, 0.15))
+    window = ti.ui.Window('Quadrotor 2D', res = (640, 360), pos = (600, 350), vsync=True)
+    gui = window.get_gui()
+    canvas = window.get_canvas()
+    canvas.set_background_color((0.15, 0.15, 0.15))
 
-Initialize()
+    Initialize()
 
-video_manager = ti.tools.VideoManager(output_dir="./output", framerate=60, automatic_build=False)
+    video_manager = ti.tools.VideoManager(output_dir="./output", framerate=60, automatic_build=False)
 
-while window.running:
-    if window.get_event(ti.ui.PRESS):
-        if i > 10:
-            if window.event.key == 'r': 
-                Initialize()
-            elif window.event.key in [ti.ui.ESCAPE]: 
-                break
-            if window.is_pressed(ti.ui.LEFT, 'a'):
-                goal[0][0] -= .05 if goal[0][0] > 0.08 else 0
-            if window.is_pressed(ti.ui.RIGHT, 'd'):
-                goal[0][0] += .05 if goal[0][0] < 0.91 else 0
-            if window.is_pressed(ti.ui.UP, 'w'):
-                goal[0][1] += .1 if goal[0][1] < 0.85 else 0
-            if window.is_pressed(ti.ui.DOWN, 's'):
-                goal[0][1] -= .1 if goal[0][1] > 0.15 else 0
-            if window.is_pressed('v'):
-                verbose = not verbose
-            if window.is_pressed(ti.ui.CTRL):
-                time_integrate_method = "Forward Euler" if time_integrate_method == "RK-2" else "RK-2"
-                print(f"Change to {time_integrate_method} time integration.")
-            i = 0
+    while window.running:
+        if window.get_event(ti.ui.PRESS):
+            if i > 10:
+                if window.event.key == 'r': 
+                    Initialize()
+                elif window.event.key in [ti.ui.ESCAPE]: 
+                    break
+                if window.is_pressed(ti.ui.LEFT, 'a'):
+                    goal[0][0] -= .05 if goal[0][0] > 0.08 else 0
+                if window.is_pressed(ti.ui.RIGHT, 'd'):
+                    goal[0][0] += .05 if goal[0][0] < 0.91 else 0
+                if window.is_pressed(ti.ui.UP, 'w'):
+                    goal[0][1] += .1 if goal[0][1] < 0.85 else 0
+                if window.is_pressed(ti.ui.DOWN, 's'):
+                    goal[0][1] -= .1 if goal[0][1] > 0.15 else 0
+                if window.is_pressed('v'):
+                    verbose = not verbose
+                if window.is_pressed(ti.ui.CTRL):
+                    time_integrate_method = "Forward Euler" if time_integrate_method == "RK-2" else "RK-2"
+                    print(f"Change to {time_integrate_method} time integration.")
+                i = 0
 
-    for _ in range(sub_step_num):
-        ret = substep(time_integrate_method == "RK-2")
+        for _ in range(sub_step_num):
+            ret = substep(time_integrate_method == "RK-2")
 
-    # Draw the robot body.
-    transform.ApplyToPoints(material_space_robot_body_vertex, robot_body_vertex)
-    canvas.lines(robot_body_vertex, 0.04, color=(0.1, 0.7, 0.3))
+        # Draw the robot body.
+        transform.ApplyToPoints(material_space_robot_body_vertex, robot_body_vertex)
+        canvas.lines(robot_body_vertex, 0.04, color=(0.1, 0.7, 0.3))
 
-    # Draw the propellers.
-    transform.ApplyToPoints(material_space_robot_propeller_vertex, robot_propeller_vertex)
-    canvas.lines(robot_propeller_vertex, 0.01, robot_propeller_index, (1., 0.7, 0.2))
-    
-    if verbose:
-        # Draw the target point.
-        canvas.circles(goal, 0.01, color=(1., 0.1, 0.1))
+        # Draw the propellers.
+        transform.ApplyToPoints(material_space_robot_propeller_vertex, robot_propeller_vertex)
+        canvas.lines(robot_propeller_vertex, 0.01, robot_propeller_index, (1., 0.7, 0.2))
+        
+        if verbose:
+            # Draw the target point.
+            canvas.circles(goal, 0.01, color=(1., 0.1, 0.1))
 
-        # Visualize the thrust.
-        VisualizeForce(ret[0], ret[1])
-        canvas.lines(force_visualization_vertex, 0.006, force_visualization_index, (0.3, 0.3, 1))
-    
-    video_manager.write_frame(window.get_image_buffer_as_numpy())
-    window.show()
-    i += 1
+            # Visualize the thrust.
+            VisualizeForce(ret[0], ret[1])
+            canvas.lines(force_visualization_vertex, 0.006, force_visualization_index, (0.3, 0.3, 1))
+        
+        video_manager.write_frame(window.get_image_buffer_as_numpy())
+        window.show()
+        i += 1
 
-video_manager.make_video(gif=True, mp4=False)
+    video_manager.make_video(gif=True, mp4=False)

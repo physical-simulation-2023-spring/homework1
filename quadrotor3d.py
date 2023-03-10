@@ -224,7 +224,8 @@ while window.running:
     camera.position(0.0, 2, -2.0)
     camera.lookat(0.0, 1., 0.0)
     scene.set_camera(camera)
-    scene.point_light(pos=(0, 2, -3), color=(1, 1, 1))
+    
+    scene.point_light(pos=(0, 2, 0), color=(0.8, 0.8, 0.8))
     scene.ambient_light((0.5, 0.5, 0.5))
     
     # Draw the robot body.

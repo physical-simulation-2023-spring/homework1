@@ -5,3 +5,4 @@
 *.ini
 output/*
 output3d/*
+*.npy
