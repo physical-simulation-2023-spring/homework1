@@ -182,74 +182,75 @@ i = 0
 time_integrate_method = "Forward Euler"
 verbose = False
 
-window = ti.ui.Window("Quadrotor 3D", (1024, 1024), vsync=True)
-canvas = window.get_canvas()
-canvas.set_background_color((1, 1, 1))
-scene = ti.ui.Scene()
-camera = ti.ui.Camera()
+if __name__ == "__main__":
+    window = ti.ui.Window("Quadrotor 3D", (1024, 1024), vsync=True)
+    canvas = window.get_canvas()
+    canvas.set_background_color((1, 1, 1))
+    scene = ti.ui.Scene()
+    camera = ti.ui.Camera()
 
-Initialize()
+    Initialize()
 
-video_manager = ti.tools.VideoManager(output_dir="./output3d", framerate=60, automatic_build=False)
+    video_manager = ti.tools.VideoManager(output_dir="./output3d", framerate=60, automatic_build=False)
 
-while window.running:
-    if window.get_event(ti.ui.PRESS):
-        if i > 10:
-            if window.event.key == 'r': 
-                Initialize()
-            elif window.event.key in [ti.ui.ESCAPE]: 
-                break
-            if window.is_pressed(ti.ui.LEFT, 'a'):
-                goal[0][0] += .05 if goal[0][0] > -0.91 else 0
-            if window.is_pressed(ti.ui.RIGHT, 'd'):
-                goal[0][0] -= .05 if goal[0][0] < 0.91 else 0
-            if window.is_pressed(ti.ui.UP):
-                goal[0][1] += .1 if goal[0][1] < 1.85 else 0
-            if window.is_pressed(ti.ui.DOWN):
-                goal[0][1] -= .1 if goal[0][1] > 0.15 else 0
-            if window.is_pressed('w'):
-                goal[0][2] += .05 if goal[0][2] < 0.91 else 0
-            if window.is_pressed('s'):
-                goal[0][2] -= .05 if goal[0][2] > -0.91 else 0
-            if window.is_pressed('v'):
-                verbose = not verbose
-            if window.is_pressed(ti.ui.CTRL):
-                time_integrate_method = "Forward Euler" if time_integrate_method == "RK-2" else "RK-2"
-                print(f"Change to {time_integrate_method} time integration.")
-            i = 0
+    while window.running:
+        if window.get_event(ti.ui.PRESS):
+            if i > 10:
+                if window.event.key == 'r': 
+                    Initialize()
+                elif window.event.key in [ti.ui.ESCAPE]: 
+                    break
+                if window.is_pressed(ti.ui.LEFT, 'a'):
+                    goal[0][0] += .05 if goal[0][0] > -0.91 else 0
+                if window.is_pressed(ti.ui.RIGHT, 'd'):
+                    goal[0][0] -= .05 if goal[0][0] < 0.91 else 0
+                if window.is_pressed(ti.ui.UP):
+                    goal[0][1] += .1 if goal[0][1] < 1.85 else 0
+                if window.is_pressed(ti.ui.DOWN):
+                    goal[0][1] -= .1 if goal[0][1] > 0.15 else 0
+                if window.is_pressed('w'):
+                    goal[0][2] += .05 if goal[0][2] < 0.91 else 0
+                if window.is_pressed('s'):
+                    goal[0][2] -= .05 if goal[0][2] > -0.91 else 0
+                if window.is_pressed('v'):
+                    verbose = not verbose
+                if window.is_pressed(ti.ui.CTRL):
+                    time_integrate_method = "Forward Euler" if time_integrate_method == "RK-2" else "RK-2"
+                    print(f"Change to {time_integrate_method} time integration.")
+                i = 0
 
-    for _ in range(sub_step_num):
-        ret = substep(time_integrate_method == "RK-2")
+        for _ in range(sub_step_num):
+            ret = substep(time_integrate_method == "RK-2")
 
-    camera.position(0.0, 2, -2.0)
-    camera.lookat(0.0, 1., 0.0)
-    scene.set_camera(camera)
-    
-    scene.point_light(pos=(0, 2, 0), color=(0.8, 0.8, 0.8))
-    scene.ambient_light((0.5, 0.5, 0.5))
-    
-    # Draw the robot body.
-    for mesh in body_mesh:
-        transform.ApplyToPoints(mesh[0], mesh[1])
-        scene.mesh(mesh[1], mesh[2], color=(1., 0.7, 0.3))
-
-    # Draw the propellers.
-    for s in [-2, 2]:
-        for mesh in propeller_mesh[::s]:
-            transform.ApplyToPoints(mesh[0], mesh[1])
-            scene.mesh(mesh[1], mesh[2], color=(0.6 + s * 0.2, 0.2, 0.6 - s * 0.2))
-
-    if verbose:
-        # Draw the target point.
-        scene.particles(goal, 0.02, color=(0.1, 0.8, 0.1))
+        camera.position(0.0, 2, -2.0)
+        camera.lookat(0.0, 1., 0.0)
+        scene.set_camera(camera)
         
-        # Visualize the thrust.
-        VisualizeForce(ret)
-        canvas.lines(force_visualization_vertex, 0.03, force_visualization_index, color=(0.1, 0.7, 0.3))
+        scene.point_light(pos=(0, 2, 0), color=(0.8, 0.8, 0.8))
+        scene.ambient_light((0.5, 0.5, 0.5))
+        
+        # Draw the robot body.
+        for mesh in body_mesh:
+            transform.ApplyToPoints(mesh[0], mesh[1])
+            scene.mesh(mesh[1], mesh[2], color=(1., 0.7, 0.3))
 
-    canvas.scene(scene)
-    video_manager.write_frame(window.get_image_buffer_as_numpy())
-    window.show()
-    i += 1
+        # Draw the propellers.
+        for s in [-2, 2]:
+            for mesh in propeller_mesh[::s]:
+                transform.ApplyToPoints(mesh[0], mesh[1])
+                scene.mesh(mesh[1], mesh[2], color=(0.6 + s * 0.2, 0.2, 0.6 - s * 0.2))
 
-video_manager.make_video(gif=True, mp4=False)
+        if verbose:
+            # Draw the target point.
+            scene.particles(goal, 0.02, color=(0.1, 0.8, 0.1))
+            
+            # Visualize the thrust.
+            VisualizeForce(ret)
+            canvas.lines(force_visualization_vertex, 0.03, force_visualization_index, color=(0.1, 0.7, 0.3))
+
+        canvas.scene(scene)
+        # video_manager.write_frame(window.get_image_buffer_as_numpy())
+        # window.show()
+        i += 1
+
+    # video_manager.make_video(gif=True, mp4=False)

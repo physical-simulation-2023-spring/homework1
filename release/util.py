@@ -1,6 +1,6 @@
 import taichi as ti
 import taichi.math as tm
-ti.init(arch=ti.cpu)
+ti.init(arch=ti.gpu)
 
 @ti.data_oriented
 class Transform2D:
